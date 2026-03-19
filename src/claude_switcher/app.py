@@ -18,7 +18,7 @@ from claude_switcher.usage import fetch_usage_for_account, fetch_active_usage, f
 class ClaudeSwitcherApp(rumps.App):
     def __init__(self):
         icon_path = Path(__file__).parent / "resources" / "icon.png"
-        super().__init__("", icon=str(icon_path), template=True, quit_button="Quitter")
+        super().__init__("", icon=str(icon_path), template=True, quit_button=None)
         self.config_path = DEFAULT_CONFIG_PATH
         self._usage_cache = {}   # email -> formatted usage string
         self._usage_items = {}   # email -> MenuItem reference
@@ -97,6 +97,7 @@ class ClaudeSwitcherApp(rumps.App):
             self.menu.add(remove_menu)
 
         self.menu.add(rumps.separator)
+        self.menu.add(rumps.MenuItem("Quitter", callback=rumps.quit_application))
 
     def _on_account_click(self, sender):
         """Switch to the clicked account."""
