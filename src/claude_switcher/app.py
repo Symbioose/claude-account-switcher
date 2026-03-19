@@ -1,6 +1,7 @@
 """macOS menu bar application using rumps."""
 
 import threading
+from pathlib import Path
 
 import rumps
 from claude_switcher.config import load_accounts, get_active_account, DEFAULT_CONFIG_PATH
@@ -16,7 +17,8 @@ from claude_switcher.usage import fetch_usage_for_account, fetch_active_usage, f
 
 class ClaudeSwitcherApp(rumps.App):
     def __init__(self):
-        super().__init__("Claude Switcher", quit_button="Quitter")
+        icon_path = Path(__file__).parent / "resources" / "icon.png"
+        super().__init__("", icon=str(icon_path), template=True, quit_button="Quitter")
         self.config_path = DEFAULT_CONFIG_PATH
         self._usage_cache = {}   # email -> formatted usage string
         self._usage_items = {}   # email -> MenuItem reference
