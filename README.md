@@ -1,6 +1,6 @@
 # Claude Account Switcher
 
-A lightweight macOS menu bar app that lets you switch between multiple Claude Code accounts instantly.
+A lightweight macOS menu bar app that lets you switch between multiple Claude Code accounts instantly — and see your usage for each one.
 
 ## Why?
 
@@ -8,14 +8,19 @@ If you have multiple Claude Code subscriptions (personal, work, etc.), switching
 
 Claude Account Switcher saves your credentials securely in the macOS Keychain and lets you switch accounts with a single click. No logout, no login, no browser. Instant.
 
+## Features
+
+- **One-click account switching** — no logout/login, no browser
+- **Live usage display** — shows 5-hour and 7-day utilization for each account directly in the menu
+- **Secure credential storage** — credentials stored in macOS Keychain, never on disk
+- **Auto-import** — detects your current Claude Code account on first launch
+
 ## How it works
 
 1. Your Claude Code credentials live in the macOS Keychain under `Claude Code-credentials`
 2. The app saves a copy of each account's credentials in separate Keychain entries
-3. When you switch, it overwrites the official entry with the target account's credentials
-4. All Claude Code sessions immediately use the new account
-
-Credentials never leave your Keychain — no config files with tokens, no clipboard, no plaintext.
+3. When you switch, it overwrites the official entry with the target account's credentials — all Claude Code sessions immediately use the new account
+4. Usage is fetched via Anthropic's OAuth API using each account's stored token
 
 ## Install
 
@@ -30,8 +35,6 @@ Credentials never leave your Keychain — no config files with tokens, no clipbo
 
 ### Install with pip
 
-If you prefer running from the terminal:
-
 ```bash
 pip install git+https://github.com/emilejouannet/claude-account-switcher.git
 claude-switcher
@@ -39,13 +42,13 @@ claude-switcher
 
 ## Usage
 
-A menu bar icon appears. From there you can:
+A menu bar icon appears. From there:
 
-- **See your accounts** — each account shows its email and subscription type (Pro, Max, etc.)
+- **See your accounts** — each account shows email, subscription type, and live usage (5h / 7j)
 - **Switch accounts** — click any account to activate it instantly
+- **Refresh usage** — click "Rafraîchir usage" to update usage data
 - **Add an account** — triggers `claude auth login` to authenticate a new account
 - **Remove an account** — removes saved credentials from the Keychain
-- **View usage** — opens the Claude usage dashboard in your browser
 
 On first launch, the app automatically imports your currently logged-in Claude Code account.
 
