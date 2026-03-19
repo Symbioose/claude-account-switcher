@@ -1,6 +1,6 @@
 """macOS menu bar application using rumps."""
 
-import webbrowser
+import threading
 
 import rumps
 from claude_switcher.config import load_accounts, get_active_account, DEFAULT_CONFIG_PATH
@@ -11,14 +11,18 @@ from claude_switcher.core import (
     add_new_account,
     remove_saved_account,
 )
+from claude_switcher.usage import fetch_usage_for_account, fetch_active_usage, format_usage
 
 
 class ClaudeSwitcherApp(rumps.App):
     def __init__(self):
         super().__init__("Claude Switcher", quit_button="Quitter")
         self.config_path = DEFAULT_CONFIG_PATH
+        self._usage_cache = {}   # email -> formatted usage string
+        self._usage_items = {}   # email -> MenuItem reference
         self._first_launch()
         self._rebuild_menu()
+        self._fetch_all_usage()
 
     def _first_launch(self):
         """Import existing account on first launch if no config exists."""
@@ -65,13 +69,21 @@ class ClaudeSwitcherApp(rumps.App):
             item._email = acc.email
             self.menu.add(item)
 
+            # Usage sub-label (placeholder, filled async)
+            if has_creds:
+                cached = self._usage_cache.get(acc.email, "Loading...")
+                usage_label = rumps.MenuItem(f"      {cached}", callback=None)
+                usage_label._email = acc.email
+                self._usage_items[acc.email] = usage_label
+                self.menu.add(usage_label)
+
         self.menu.add(rumps.separator)
 
         # Add account
         self.menu.add(rumps.MenuItem("Ajouter un compte...", callback=self._on_add_account))
 
-        # View usage
-        self.menu.add(rumps.MenuItem("Voir usage...", callback=self._on_view_usage))
+        # Refresh usage
+        self.menu.add(rumps.MenuItem("Rafraîchir usage", callback=self._on_refresh_usage))
 
         # Remove account submenu
         if accounts:
@@ -130,9 +142,31 @@ class ClaudeSwitcherApp(rumps.App):
             rumps.alert(title="Erreur", message=str(e))
         self._rebuild_menu()
 
-    def _on_view_usage(self, _):
-        """Open Claude usage page in browser."""
-        webbrowser.open("https://claude.ai/settings/usage")
+    def _fetch_all_usage(self):
+        """Fetch usage for all accounts in a background thread."""
+        accounts = load_accounts(self.config_path)
+        active = get_active_account(self.config_path)
+
+        def _fetch():
+            for acc in accounts:
+                if active and acc.email == active.email:
+                    usage = fetch_active_usage()  # fresh token from CLAUDE_SERVICE
+                else:
+                    usage = fetch_usage_for_account(acc.email)
+                self._usage_cache[acc.email] = format_usage(usage)
+            self._update_usage_labels()
+
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _update_usage_labels(self):
+        """Update usage labels in the menu from cache."""
+        for email, item in self._usage_items.items():
+            usage_text = self._usage_cache.get(email, "Usage indisponible")
+            item.title = f"      {usage_text}"
+
+    def _on_refresh_usage(self, _):
+        """Refresh usage data for all accounts."""
+        self._fetch_all_usage()
 
     def _on_remove_account(self, sender):
         """Remove a saved account."""
