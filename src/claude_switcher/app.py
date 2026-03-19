@@ -44,17 +44,24 @@ class ClaudeSwitcherApp(rumps.App):
 
         self.menu.clear()
 
+        # Active account header
+        if active:
+            header = rumps.MenuItem(f"Actif : {active.email} ({active.subscription_type})")
+            header.set_callback(None)
+            self.menu.add(header)
+            self.menu.add(rumps.separator)
+
         # Account items — validate Keychain entries exist
         from claude_switcher import keychain
         for acc in accounts:
             has_creds = keychain.read_credentials(f"claude-switcher:{acc.email}") is not None
             if has_creds:
-                label = f"{acc.email} ({acc.subscription_type})"
+                prefix = "\u2713 " if acc.active else "   "
+                label = f"{prefix}{acc.email} ({acc.subscription_type})"
                 item = rumps.MenuItem(label, callback=self._on_account_click)
             else:
-                label = f"{acc.email} (indisponible)"
+                label = f"   {acc.email} (indisponible)"
                 item = rumps.MenuItem(label, callback=None)
-            item.state = acc.active
             item._email = acc.email
             self.menu.add(item)
 
