@@ -31,15 +31,15 @@ class ClaudeSwitcherApp(rumps.App):
         if not self.config_path.exists():
             if not check_claude_cli():
                 rumps.alert(
-                    title="Claude CLI introuvable",
-                    message="Installez Claude Code avant d'utiliser Claude Switcher.",
+                    title="Claude CLI not found",
+                    message="Please install Claude Code before using Claude Switcher.",
                 )
                 return
             imported = import_current_account(self.config_path)
             if imported:
                 rumps.notification(
                     title="Claude Switcher",
-                    subtitle="Compte importé",
+                    subtitle="Account imported",
                     message=f"{imported.email} ({imported.subscription_type})",
                 )
 
@@ -52,7 +52,7 @@ class ClaudeSwitcherApp(rumps.App):
 
         # Active account header
         if active:
-            header = rumps.MenuItem(f"Actif : {active.email} ({active.subscription_type})")
+            header = rumps.MenuItem(f"Active: {active.email} ({active.subscription_type})")
             header.set_callback(None)
             self.menu.add(header)
             self.menu.add(rumps.separator)
@@ -66,7 +66,7 @@ class ClaudeSwitcherApp(rumps.App):
                 label = f"{prefix}{acc.email} ({acc.subscription_type})"
                 item = rumps.MenuItem(label, callback=self._on_account_click)
             else:
-                label = f"   {acc.email} (indisponible)"
+                label = f"   {acc.email} (unavailable)"
                 item = rumps.MenuItem(label, callback=None)
             item._email = acc.email
             self.menu.add(item)
@@ -82,14 +82,14 @@ class ClaudeSwitcherApp(rumps.App):
         self.menu.add(rumps.separator)
 
         # Add account
-        self.menu.add(rumps.MenuItem("Ajouter un compte...", callback=self._on_add_account))
+        self.menu.add(rumps.MenuItem("Add account...", callback=self._on_add_account))
 
         # Refresh usage
-        self.menu.add(rumps.MenuItem("Rafraîchir usage", callback=self._on_refresh_usage))
+        self.menu.add(rumps.MenuItem("Refresh usage", callback=self._on_refresh_usage))
 
         # Remove account submenu
         if accounts:
-            remove_menu = rumps.MenuItem("Supprimer un compte")
+            remove_menu = rumps.MenuItem("Remove account")
             for acc in accounts:
                 remove_item = rumps.MenuItem(acc.email, callback=self._on_remove_account)
                 remove_item._email = acc.email
@@ -97,7 +97,7 @@ class ClaudeSwitcherApp(rumps.App):
             self.menu.add(remove_menu)
 
         self.menu.add(rumps.separator)
-        self.menu.add(rumps.MenuItem("Quitter", callback=rumps.quit_application))
+        self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
 
     def _on_account_click(self, sender):
         """Switch to the clicked account."""
@@ -110,11 +110,11 @@ class ClaudeSwitcherApp(rumps.App):
             switch_account(email, self.config_path)
             rumps.notification(
                 title="Claude Switcher",
-                subtitle="Compte activé",
+                subtitle="Account switched",
                 message=email,
             )
         except Exception as e:
-            rumps.alert(title="Erreur", message=str(e))
+            rumps.alert(title="Error", message=str(e))
 
         self._rebuild_menu()
 
@@ -122,8 +122,8 @@ class ClaudeSwitcherApp(rumps.App):
         """Add a new account via claude auth login."""
         if not check_claude_cli():
             rumps.alert(
-                title="Claude CLI introuvable",
-                message="Installez Claude Code avant d'ajouter un compte.",
+                title="Claude CLI not found",
+                message="Please install Claude Code before adding an account.",
             )
             return
 
@@ -132,17 +132,17 @@ class ClaudeSwitcherApp(rumps.App):
             if result:
                 rumps.notification(
                     title="Claude Switcher",
-                    subtitle="Compte ajouté",
+                    subtitle="Account added",
                     message=f"{result.email} ({result.subscription_type})",
                 )
             else:
                 rumps.notification(
                     title="Claude Switcher",
-                    subtitle="Ajout annulé",
-                    message="Le login a été annulé ou a échoué.",
+                    subtitle="Cancelled",
+                    message="Login was cancelled or failed.",
                 )
         except Exception as e:
-            rumps.alert(title="Erreur", message=str(e))
+            rumps.alert(title="Error", message=str(e))
         self._rebuild_menu()
 
     def _fetch_all_usage(self):
@@ -164,7 +164,7 @@ class ClaudeSwitcherApp(rumps.App):
     def _update_usage_labels(self):
         """Update usage labels in the menu from cache."""
         for email, item in self._usage_items.items():
-            usage_text = self._usage_cache.get(email, "Usage indisponible")
+            usage_text = self._usage_cache.get(email, "Usage unavailable")
             item.title = f"      {usage_text}"
 
     def _on_refresh_usage(self, _):
@@ -178,15 +178,15 @@ class ClaudeSwitcherApp(rumps.App):
 
         if active and active.email == email:
             rumps.alert(
-                title="Impossible",
-                message="Vous ne pouvez pas supprimer le compte actif. Changez de compte d'abord.",
+                title="Cannot remove",
+                message="You cannot remove the active account. Switch to another account first.",
             )
             return
 
         remove_saved_account(email, self.config_path)
         rumps.notification(
             title="Claude Switcher",
-            subtitle="Compte supprimé",
+            subtitle="Account removed",
             message=email,
         )
         self._rebuild_menu()
