@@ -152,17 +152,21 @@ class ClaudeSwitcherApp(rumps.App):
 
         def _fetch():
             for acc in accounts:
-                if active and acc.email == active.email:
-                    usage = fetch_active_usage()  # fresh token from CLAUDE_SERVICE
-                else:
-                    usage = fetch_usage_for_account(acc.email)
-                self._usage_cache[acc.email] = format_usage(usage)
-            self._update_usage_labels()
+                try:
+                    if active and acc.email == active.email:
+                        usage = fetch_active_usage()
+                    else:
+                        usage = fetch_usage_for_account(acc.email)
+                    self._usage_cache[acc.email] = format_usage(usage)
+                except Exception:
+                    self._usage_cache[acc.email] = "Usage indisponible"
+            # Dispatch UI update to main thread via rumps.Timer
+            rumps.Timer(self._update_usage_labels, 0.1).start()
 
         threading.Thread(target=_fetch, daemon=True).start()
 
-    def _update_usage_labels(self):
-        """Update usage labels in the menu from cache."""
+    def _update_usage_labels(self, _=None):
+        """Update usage labels in the menu from cache (called on main thread)."""
         for email, item in self._usage_items.items():
             usage_text = self._usage_cache.get(email, "Usage indisponible")
             item.title = f"      {usage_text}"
@@ -183,12 +187,15 @@ class ClaudeSwitcherApp(rumps.App):
             )
             return
 
-        remove_saved_account(email, self.config_path)
-        rumps.notification(
-            title="Claude Switcher",
-            subtitle="Compte supprimé",
-            message=email,
-        )
+        try:
+            remove_saved_account(email, self.config_path)
+            rumps.notification(
+                title="Claude Switcher",
+                subtitle="Compte supprimé",
+                message=email,
+            )
+        except Exception as e:
+            rumps.alert(title="Erreur", message=str(e))
         self._rebuild_menu()
 
 

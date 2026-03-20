@@ -43,14 +43,15 @@ class TestWriteCredentials:
             ["security", "delete-generic-password", "-s", "claude-switcher:emile@gmail.com"],
             capture_output=True, text=True,
         )
-        # Verify add call
+        # Verify add call (password passed via stdin, not as argument)
         mock_run.assert_any_call(
             [
                 "security", "add-generic-password",
                 "-s", "claude-switcher:emile@gmail.com",
                 "-a", "emilejouannet",
-                "-w", FAKE_CREDS,
+                "-w",
             ],
+            input=FAKE_CREDS,
             capture_output=True,
             text=True,
         )

@@ -34,8 +34,9 @@ def write_credentials(service: str, account: str, password: str) -> None:
             "security", "add-generic-password",
             "-s", service,
             "-a", account,
-            "-w", password,
+            "-w",
         ],
+        input=password,
         capture_output=True,
         text=True,
     )

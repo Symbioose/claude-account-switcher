@@ -44,7 +44,7 @@ def _write_oauth_account(oauth_account: dict) -> None:
     try:
         data = json.loads(CLAUDE_STATE_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return
+        data = {}
     data["oauthAccount"] = oauth_account
     CLAUDE_STATE_FILE.write_text(json.dumps(data))
 
