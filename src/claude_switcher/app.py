@@ -127,23 +127,30 @@ class ClaudeSwitcherApp(rumps.App):
             )
             return
 
-        try:
-            result = add_new_account(self.config_path)
-            if result:
+        def _add():
+            try:
+                result = add_new_account(self.config_path)
+                if result:
+                    rumps.notification(
+                        title="Claude Switcher",
+                        subtitle="Account added",
+                        message=f"{result.email} ({result.subscription_type})",
+                    )
+                else:
+                    rumps.notification(
+                        title="Claude Switcher",
+                        subtitle="Cancelled",
+                        message="Login was cancelled or failed.",
+                    )
+            except Exception as e:
                 rumps.notification(
                     title="Claude Switcher",
-                    subtitle="Account added",
-                    message=f"{result.email} ({result.subscription_type})",
+                    subtitle="Error",
+                    message=str(e),
                 )
-            else:
-                rumps.notification(
-                    title="Claude Switcher",
-                    subtitle="Cancelled",
-                    message="Login was cancelled or failed.",
-                )
-        except Exception as e:
-            rumps.alert(title="Error", message=str(e))
-        self._rebuild_menu()
+            self._rebuild_menu()
+
+        threading.Thread(target=_add, daemon=True).start()
 
     def _fetch_all_usage(self):
         """Fetch usage for all accounts in a background thread."""
