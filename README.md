@@ -1,5 +1,7 @@
 # Claude Account Switcher
 
+![Claude Switcher screenshot](screenshot.png)
+
 A lightweight macOS menu bar app that lets you switch between multiple Claude Code accounts instantly — and see your usage for each one.
 
 ## Why?
