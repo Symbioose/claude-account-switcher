@@ -67,21 +67,22 @@ Usage data (5h/7d rate limits) is fetched via Anthropic's OAuth API using each a
 
 ## Install
 
-### Download the app (recommended)
+### Homebrew (recommended)
 
-1. Go to [Releases](https://github.com/emilejouannet/claude-account-switcher/releases/latest)
+```bash
+brew install --cask Symbioose/tap/claude-switcher
+```
+
+Then launch it from Spotlight or `/Applications/Claude Switcher.app`.
+
+### Download the app
+
+1. Go to [Releases](https://github.com/Symbioose/claude-account-switcher/releases/latest)
 2. Download **Claude-Switcher.zip**
 3. Unzip and drag **Claude Switcher.app** to `/Applications`
 4. Launch it — the icon appears in your menu bar
 
 > **Note:** On first launch, macOS may block the app because it's not signed. Go to **System Settings → Privacy & Security** and click **Open Anyway**.
-
-### Install with pip
-
-```bash
-pip install git+https://github.com/emilejouannet/claude-account-switcher.git
-claude-switcher
-```
 
 ## Usage
 
