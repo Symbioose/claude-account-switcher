@@ -52,7 +52,7 @@ class ClaudeSwitcherApp(rumps.App):
 
         # Active account header
         if active:
-            header = rumps.MenuItem(f"Active: {active.email} ({active.subscription_type})")
+            header = rumps.MenuItem(f"\u25C9  {active.email} \u2014 {active.subscription_type}")
             header.set_callback(None)
             self.menu.add(header)
             self.menu.add(rumps.separator)
@@ -62,19 +62,22 @@ class ClaudeSwitcherApp(rumps.App):
         for acc in accounts:
             has_creds = keychain.read_credentials(f"claude-switcher:{acc.email}") is not None
             if has_creds:
-                prefix = "\u2713 " if acc.active else "   "
+                if acc.active:
+                    prefix = "\u25C9  "
+                else:
+                    prefix = "\u25CB  "
                 label = f"{prefix}{acc.email} ({acc.subscription_type})"
                 item = rumps.MenuItem(label, callback=self._on_account_click)
             else:
-                label = f"   {acc.email} (unavailable)"
+                label = f"\u25CB  {acc.email} (unavailable)"
                 item = rumps.MenuItem(label, callback=None)
             item._email = acc.email
             self.menu.add(item)
 
             # Usage sub-label (placeholder, filled async)
             if has_creds:
-                cached = self._usage_cache.get(acc.email, "Loading...")
-                usage_label = rumps.MenuItem(f"      {cached}", callback=None)
+                cached = self._usage_cache.get(acc.email, "\u2022\u2022\u2022")
+                usage_label = rumps.MenuItem(f"       \u2502  {cached}", callback=None)
                 usage_label._email = acc.email
                 self._usage_items[acc.email] = usage_label
                 self.menu.add(usage_label)
@@ -82,14 +85,14 @@ class ClaudeSwitcherApp(rumps.App):
         self.menu.add(rumps.separator)
 
         # Add account
-        self.menu.add(rumps.MenuItem("Add account...", callback=self._on_add_account))
+        self.menu.add(rumps.MenuItem("\u271A  Add account\u2026", callback=self._on_add_account))
 
         # Refresh usage
-        self.menu.add(rumps.MenuItem("Refresh usage", callback=self._on_refresh_usage))
+        self.menu.add(rumps.MenuItem("\u21BB  Refresh usage", callback=self._on_refresh_usage))
 
         # Remove account submenu
         if accounts:
-            remove_menu = rumps.MenuItem("Remove account")
+            remove_menu = rumps.MenuItem("\u2212  Remove account")
             for acc in accounts:
                 remove_item = rumps.MenuItem(acc.email, callback=self._on_remove_account)
                 remove_item._email = acc.email
@@ -97,7 +100,7 @@ class ClaudeSwitcherApp(rumps.App):
             self.menu.add(remove_menu)
 
         self.menu.add(rumps.separator)
-        self.menu.add(rumps.MenuItem("Quit", callback=rumps.quit_application))
+        self.menu.add(rumps.MenuItem("\u23FB  Quit", callback=rumps.quit_application))
 
     def _on_account_click(self, sender):
         """Switch to the clicked account."""
@@ -172,7 +175,7 @@ class ClaudeSwitcherApp(rumps.App):
         """Update usage labels in the menu from cache."""
         for email, item in self._usage_items.items():
             usage_text = self._usage_cache.get(email, "Usage unavailable")
-            item.title = f"      {usage_text}"
+            item.title = f"       \u2502  {usage_text}"
 
     def _on_refresh_usage(self, _):
         """Refresh usage data for all accounts."""
