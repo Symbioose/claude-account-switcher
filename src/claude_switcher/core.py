@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from claude_switcher import keychain
@@ -33,7 +34,7 @@ def _validate_email(email: str) -> str:
 def _read_oauth_account() -> dict | None:
     """Read the oauthAccount object from ~/.claude.json."""
     try:
-        data = json.loads(CLAUDE_STATE_FILE.read_text())
+        data = json.loads(CLAUDE_STATE_FILE.read_text(encoding="utf-8"))
         return data.get("oauthAccount")
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return None
@@ -42,11 +43,11 @@ def _read_oauth_account() -> dict | None:
 def _write_oauth_account(oauth_account: dict) -> None:
     """Write the oauthAccount object into ~/.claude.json (merge, not overwrite)."""
     try:
-        data = json.loads(CLAUDE_STATE_FILE.read_text())
+        data = json.loads(CLAUDE_STATE_FILE.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return
     data["oauthAccount"] = oauth_account
-    CLAUDE_STATE_FILE.write_text(json.dumps(data))
+    CLAUDE_STATE_FILE.write_text(json.dumps(data), encoding="utf-8")
 
 
 _EXTRA_PATHS = [
@@ -106,7 +107,13 @@ def run_auth_login() -> bool:
 
 def import_current_account(config_path: Path = DEFAULT_CONFIG_PATH) -> AccountInfo | None:
     """Import the currently logged-in Claude Code account. Returns AccountInfo or None."""
-    creds = keychain.read_credentials(CLAUDE_SERVICE)
+    # Retry keychain read — after login, credentials may not be written yet
+    creds = None
+    for _ in range(5):
+        creds = keychain.read_credentials(CLAUDE_SERVICE)
+        if creds:
+            break
+        time.sleep(1)
     if not creds:
         return None
 

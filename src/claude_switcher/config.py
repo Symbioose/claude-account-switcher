@@ -23,7 +23,7 @@ def load_accounts(path: Path = DEFAULT_CONFIG_PATH) -> list[AccountInfo]:
     if not path.exists():
         return []
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         return [
             AccountInfo(**{k: v for k, v in acc.items() if k in AccountInfo.__dataclass_fields__})
             for acc in data["accounts"]
