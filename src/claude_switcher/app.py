@@ -4,6 +4,12 @@ import threading
 from pathlib import Path
 
 import rumps
+from Foundation import NSOperationQueue
+
+
+def _on_main_thread(fn):
+    """Schedule fn() to run on the main thread via Cocoa's operation queue."""
+    NSOperationQueue.mainQueue().addOperationWithBlock_(fn)
 from claude_switcher.config import load_accounts, get_active_account, DEFAULT_CONFIG_PATH
 from claude_switcher.core import (
     check_claude_cli,
@@ -151,7 +157,7 @@ class ClaudeSwitcherApp(rumps.App):
                     subtitle="Error",
                     message=str(e),
                 )
-            self._rebuild_menu()
+            _on_main_thread(self._rebuild_menu)
 
         threading.Thread(target=_add, daemon=True).start()
 
@@ -167,7 +173,7 @@ class ClaudeSwitcherApp(rumps.App):
                 else:
                     usage = fetch_usage_for_account(acc.email)
                 self._usage_cache[acc.email] = format_usage(usage)
-            self._update_usage_labels()
+            _on_main_thread(self._update_usage_labels)
 
         threading.Thread(target=_fetch, daemon=True).start()
 
