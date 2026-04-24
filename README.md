@@ -1,5 +1,7 @@
 # Claude Account Switcher
 
+[![Downloads](https://img.shields.io/github/downloads/Symbioose/claude-account-switcher/total?style=flat-square&label=downloads)](https://github.com/Symbioose/claude-account-switcher/releases)
+
 ![Claude Switcher screenshot](screenshot.png)
 
 A lightweight macOS menu bar app that lets you switch between multiple Claude Code accounts instantly — and see your usage for each one.
