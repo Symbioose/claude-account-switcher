@@ -21,8 +21,8 @@ OPTIONS = {
         "CFBundleName": "Claude Switcher",
         "CFBundleDisplayName": "Claude Switcher",
         "CFBundleIdentifier": "com.emilejouannet.claude-switcher",
-        "CFBundleVersion": "0.2.0",
-        "CFBundleShortVersionString": "0.2.0",
+        "CFBundleVersion": "0.3.6",
+        "CFBundleShortVersionString": "0.3.6",
         "LSUIElement": True,
         "LSMinimumSystemVersion": "12.0",
     },
@@ -36,6 +36,4 @@ setup(
     app=APP,
     name="Claude Switcher",
     options={"py2app": OPTIONS},
-    install_requires=[],
-    setup_requires=["py2app"],
 )
