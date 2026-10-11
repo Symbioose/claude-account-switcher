@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from claude_switcher import keychain
+from claude_switcher.cli_paths import cli_env, find_cli
 from claude_switcher.config import (
     AccountInfo,
     add_account,
@@ -50,23 +51,12 @@ def _write_oauth_account(oauth_account: dict) -> None:
     CLAUDE_STATE_FILE.write_text(json.dumps(data), encoding="utf-8")
 
 
-_EXTRA_PATHS = [
-    Path.home() / ".local" / "bin",
-    Path("/usr/local/bin"),
-    Path("/opt/homebrew/bin"),
-]
-
-
 def _find_claude() -> str | None:
     """Find the claude binary, checking common install locations beyond PATH."""
     found = shutil.which("claude")
     if found:
         return found
-    for d in _EXTRA_PATHS:
-        candidate = d / "claude"
-        if candidate.is_file():
-            return str(candidate)
-    return None
+    return find_cli("claude")
 
 
 def check_claude_cli() -> bool:
@@ -81,10 +71,12 @@ def _claude_cmd() -> str:
 
 def get_auth_status() -> dict | None:
     """Run `claude auth status --json` and return parsed JSON, or None on failure."""
+    cmd = _claude_cmd()
     result = subprocess.run(
-        [_claude_cmd(), "auth", "status", "--json"],
+        [cmd, "auth", "status", "--json"],
         capture_output=True,
         text=True,
+        env=cli_env(cmd),
     )
     if result.returncode != 0:
         return None
@@ -96,12 +88,14 @@ def get_auth_status() -> dict | None:
 
 def run_auth_logout() -> None:
     """Run `claude auth logout`."""
-    subprocess.run([_claude_cmd(), "auth", "logout"], capture_output=True, text=True)
+    cmd = _claude_cmd()
+    subprocess.run([cmd, "auth", "logout"], capture_output=True, text=True, env=cli_env(cmd))
 
 
 def run_auth_login() -> bool:
     """Run `claude auth login`. Returns True if successful (exit code 0)."""
-    result = subprocess.run([_claude_cmd(), "auth", "login"])
+    cmd = _claude_cmd()
+    result = subprocess.run([cmd, "auth", "login"], env=cli_env(cmd))
     return result.returncode == 0
 
 

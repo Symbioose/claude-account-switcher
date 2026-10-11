@@ -21,6 +21,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised only on Python 3.10
     import tomli as tomllib
 
 from claude_switcher import keychain
+from claude_switcher.cli_paths import cli_env, find_cli
 from claude_switcher.config import (
     AccountInfo,
     add_account,
@@ -53,23 +54,12 @@ class CodexCredentialsExpiredError(RuntimeError):
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-_EXTRA_PATHS = [
-    Path.home() / ".local" / "bin",
-    Path("/usr/local/bin"),
-    Path("/opt/homebrew/bin"),
-]
-
-
 def _find_codex() -> str | None:
     """Find the codex binary, checking common install locations beyond PATH."""
     found = shutil.which("codex")
     if found:
         return found
-    for directory in _EXTRA_PATHS:
-        candidate = directory / "codex"
-        if candidate.is_file():
-            return str(candidate)
-    return None
+    return find_cli("codex")
 
 
 def check_codex_cli() -> bool:
@@ -84,10 +74,12 @@ def _codex_cmd() -> str:
 
 def get_codex_auth_status() -> dict | None:
     """Run `codex login status`. Returns a simple dict on success."""
+    cmd = _codex_cmd()
     result = subprocess.run(
-        [_codex_cmd(), "login", "status"],
+        [cmd, "login", "status"],
         capture_output=True,
         text=True,
+        env=cli_env(cmd),
     )
     if result.returncode != 0:
         return None
@@ -333,7 +325,8 @@ def write_active_codex_credentials(creds: str) -> None:
 
 def run_codex_logout() -> None:
     """Run `codex logout`."""
-    subprocess.run([_codex_cmd(), "logout"], capture_output=True, text=True)
+    cmd = _codex_cmd()
+    subprocess.run([cmd, "logout"], capture_output=True, text=True, env=cli_env(cmd))
 
 
 def _clear_codex_credentials_file() -> None:
@@ -349,8 +342,11 @@ def _clear_codex_credentials_file() -> None:
 def _launch_codex_login_terminal() -> None:
     """Open Terminal.app and run an interactive Codex login command."""
     script_path = Path(tempfile.gettempdir()) / f"claude-switcher-codex-login-{os.getpid()}.command"
-    codex_cmd = shlex.quote(_codex_cmd())
+    cmd = _codex_cmd()
+    codex_cmd = shlex.quote(cmd)
+    codex_dir = shlex.quote(os.path.dirname(cmd) or "/usr/bin")
     script = f"""#!/bin/zsh
+export PATH="$PATH":{codex_dir}
 echo "Claude Switcher - Codex login"
 echo ""
 echo "Complete the Codex login flow in this Terminal window."

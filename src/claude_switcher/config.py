@@ -1,13 +1,30 @@
 """Account list persistence in ~/.config/claude-switcher/accounts.json."""
 
+import functools
 import json
 import os
+import shutil
+import threading
 from dataclasses import dataclass, asdict, field
 from pathlib import Path
+
+from claude_switcher.fsutil import atomic_write_text
 
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "claude-switcher" / "accounts.json"
 CONFIG_VERSION = 2
 DEFAULT_PROVIDERS = ("claude", "codex")
+
+# Serializes read-modify-write cycles on the config file. The menu bar app
+# mutates it from the main thread and from background threads.
+_CONFIG_LOCK = threading.RLock()
+
+
+def _locked(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _CONFIG_LOCK:
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 @dataclass
@@ -39,11 +56,27 @@ def _read_config_data(path: Path = DEFAULT_CONFIG_PATH) -> dict:
         return {"version": CONFIG_VERSION, "settings": _default_settings_dict(), "accounts": []}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError:
+        _backup_unreadable_config(path)
+        return {"version": CONFIG_VERSION, "settings": _default_settings_dict(), "accounts": []}
+    except OSError:
         return {"version": CONFIG_VERSION, "settings": _default_settings_dict(), "accounts": []}
     if not isinstance(data, dict):
+        _backup_unreadable_config(path)
         return {"version": CONFIG_VERSION, "settings": _default_settings_dict(), "accounts": []}
     return data
+
+
+def _backup_unreadable_config(path: Path) -> None:
+    """Keep a copy of an unreadable config before the next save replaces it."""
+    backup = path.with_name(path.name + ".corrupt")
+    try:
+        if backup.exists():
+            return
+        shutil.copy2(path, backup)
+        os.chmod(backup, 0o600)
+    except OSError:
+        pass
 
 
 def _write_config_data(data: dict, path: Path = DEFAULT_CONFIG_PATH) -> None:
@@ -52,8 +85,7 @@ def _write_config_data(data: dict, path: Path = DEFAULT_CONFIG_PATH) -> None:
     data.setdefault("version", CONFIG_VERSION)
     data.setdefault("settings", _default_settings_dict())
     data.setdefault("accounts", [])
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    os.chmod(path, 0o600)
+    atomic_write_text(path, json.dumps(data, indent=2), mode=0o600)
 
 
 def _settings_from_dict(data: dict | None) -> AppSettings:
@@ -96,6 +128,7 @@ def load_accounts(path: Path = DEFAULT_CONFIG_PATH) -> list[AccountInfo]:
     return loaded
 
 
+@_locked
 def save_accounts(accounts: list[AccountInfo], path: Path = DEFAULT_CONFIG_PATH) -> None:
     """Save accounts to JSON file, preserving app settings."""
     data = _read_config_data(path)
@@ -105,6 +138,7 @@ def save_accounts(accounts: list[AccountInfo], path: Path = DEFAULT_CONFIG_PATH)
     _write_config_data(data, path)
 
 
+@_locked
 def add_account(account: AccountInfo, path: Path = DEFAULT_CONFIG_PATH) -> None:
     """Add or update an account, matched by email and provider."""
     accounts = load_accounts(path)
@@ -116,6 +150,7 @@ def add_account(account: AccountInfo, path: Path = DEFAULT_CONFIG_PATH) -> None:
     save_accounts(accounts, path)
 
 
+@_locked
 def remove_account(email: str, path: Path = DEFAULT_CONFIG_PATH, provider: str = "claude") -> None:
     """Remove an account by email and provider."""
     accounts = load_accounts(path)
@@ -133,6 +168,7 @@ def get_active_account(
     return None
 
 
+@_locked
 def set_active_account(
     email: str, path: Path = DEFAULT_CONFIG_PATH, provider: str = "claude"
 ) -> None:
@@ -150,6 +186,7 @@ def load_settings(path: Path = DEFAULT_CONFIG_PATH) -> AppSettings:
     return _settings_from_dict(data.get("settings"))
 
 
+@_locked
 def save_settings(settings: AppSettings, path: Path = DEFAULT_CONFIG_PATH) -> None:
     """Persist app settings without modifying accounts."""
     data = _read_config_data(path)
@@ -165,6 +202,7 @@ def is_auto_switch_enabled(provider: str, path: Path = DEFAULT_CONFIG_PATH) -> b
     return bool(settings.auto_switch.get(provider, False))
 
 
+@_locked
 def set_auto_switch_enabled(
     provider: str, enabled: bool, path: Path = DEFAULT_CONFIG_PATH
 ) -> None:

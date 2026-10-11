@@ -66,6 +66,9 @@ class ClaudeSwitcherApp(rumps.App):
         self._last_auto_switch_attempt: dict[str, float] = {}
         self._refresh_in_progress = False
         self._switch_in_progress: set[str] = set()
+        # Held while a manual or automatic switch rewrites a provider's live
+        # credentials, so the two can never interleave.
+        self._switch_locks = {provider: threading.Lock() for provider in PROVIDER_LABELS}
         self._first_launch()
         self._rebuild_menu()
         self._fetch_all_usage()
@@ -222,10 +225,11 @@ class ClaudeSwitcherApp(rumps.App):
         def _switch():
             error = None
             try:
-                if provider == "claude":
-                    switch_account(email, self.config_path)
-                else:
-                    switch_codex_account(email, self.config_path)
+                with self._switch_locks[provider]:
+                    if provider == "claude":
+                        switch_account(email, self.config_path)
+                    else:
+                        switch_codex_account(email, self.config_path)
             except Exception as exc:
                 error = str(exc)
 
@@ -406,6 +410,23 @@ class ClaudeSwitcherApp(rumps.App):
         now = time.time()
         last_attempt = self._last_auto_switch_attempt.get(provider, 0)
         if now - last_attempt < AUTO_SWITCH_COOLDOWN_SECONDS:
+            return None
+
+        # A manual switch is rewriting the live credentials: leave this round to
+        # it rather than switching from a stale view of the active account.
+        lock = self._switch_locks[provider]
+        if not lock.acquire(blocking=False):
+            return None
+        try:
+            return self._auto_switch_locked(provider, active.email, settings, now)
+        finally:
+            lock.release()
+
+    def _auto_switch_locked(
+        self, provider: str, decided_email: str, settings, now: float
+    ) -> dict | None:
+        active = get_active_account(self.config_path, provider=provider)
+        if not active or active.email != decided_email:
             return None
         self._last_auto_switch_attempt[provider] = now
 
