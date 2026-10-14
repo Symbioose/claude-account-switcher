@@ -7,7 +7,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from claude_switcher import keychain
+from claude_switcher import desktop, keychain
 from claude_switcher.config import (
     AccountInfo,
     add_account,
@@ -186,6 +186,12 @@ def switch_account(target_email: str, config_path: Path = DEFAULT_CONFIG_PATH) -
         _write_oauth_account(target_account.oauth_account)
 
     set_active_account(target_email, config_path, provider="claude")
+
+    # The desktop app has its own session and does not follow the Keychain swap.
+    try:
+        desktop.switch_desktop_profile(target_email)
+    except OSError:
+        pass
 
 
 def add_new_account(config_path: Path = DEFAULT_CONFIG_PATH) -> AccountInfo | None:
