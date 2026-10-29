@@ -20,6 +20,7 @@ Claude Switcher stores account backups in macOS Keychain and swaps the active CL
 ## Features
 
 - **Claude Code account switching** - swap saved Claude Code sessions instantly
+- **Claude Desktop can follow** - switch the Claude Desktop app with Claude Code, or on its own, when it's installed
 - **Codex CLI account switching** - save and restore Codex `auth.json` sessions
 - **Provider-separated state** - same email can exist once for Claude and once for Codex
 - **Live usage in the menu bar** - Claude 5-hour/7-day windows and Codex primary/secondary windows
@@ -74,6 +75,8 @@ codex login status
 
 Claude Code stores OAuth credentials in macOS Keychain under `Claude Code-credentials` and account metadata in `~/.claude.json`. Claude Switcher backs up each saved Claude account under `claude-switcher:{email}`, then restores the selected backup into Claude Code's active credential slot and updates `~/.claude.json`.
 
+Claude Desktop keeps its own sign-in, in `~/Library/Application Support/Claude` (the `Cookies` file and the `oauth:*` and `lastKnownAccountUuid` entries of `config.json`). When you switch Claude accounts, the switcher backs up Desktop's sign-in under `claude-switcher-desktop:{email}` (the account Desktop is really signed in to, found by its account id) and restores the target's backup. When Desktop is on another account, clicking an account asks what to switch: **Both**, **Claude Code only** or **Desktop only** (clicking the active Claude Code account offers Desktop alone). An open Desktop is quit and reopened; a closed one opens on the right account next time. The first time you switch Desktop to an account, it is signed out: sign in once and the next switches remember it. Auto-switch never touches Desktop.
+
 Codex CLI stores ChatGPT authentication in `~/.codex/auth.json` when `cli_auth_credentials_store = "file"` is used. Claude Switcher backs up each saved Codex session under `codex-switcher:{email}` and restores the selected session back to `~/.codex/auth.json` with `0600` permissions.
 
 Auto-switch is disabled by default. When enabled, usage refreshes in the background and the app switches only within the same provider. A full Claude account switches to another Claude account; a full Codex account switches to another Codex account.
@@ -85,11 +88,16 @@ macOS Keychain
 ├── Claude Code-credentials       active Claude token
 ├── claude-switcher:user1@...     saved Claude account
 ├── claude-switcher:user2@...     saved Claude account
+├── claude-switcher-desktop:...   saved Claude Desktop sign-in
 ├── codex-switcher:user1@...      saved Codex auth.json
 └── codex-switcher:user2@...      saved Codex auth.json
 
 ~/.claude.json
 └── oauthAccount                  swapped on Claude account switch
+
+~/Library/Application Support/Claude
+├── Cookies                       swapped on Claude account switch
+└── config.json (oauth:*)         swapped on Claude account switch
 
 ~/.codex/auth.json
 └── tokens                        swapped on Codex account switch

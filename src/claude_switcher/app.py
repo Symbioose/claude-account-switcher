@@ -7,7 +7,7 @@ from pathlib import Path
 import rumps
 from Foundation import NSOperationQueue
 
-from claude_switcher import keychain
+from claude_switcher import desktop, keychain
 from claude_switcher.auto_switch import (
     account_key,
     choose_auto_switch_target,
@@ -48,6 +48,11 @@ PROVIDER_LABELS = {
     "codex": "Codex CLI",
 }
 AUTO_SWITCH_COOLDOWN_SECONDS = 60
+DESKTOP_MESSAGES = {
+    "switched": "Switched to the same account.",
+    "signed_out": "Sign in once with this account; the next switches will remember it.",
+    "unknown_account": "Left as is: it's signed in to an account not added here.",
+}
 
 
 def _on_main_thread(fn):
@@ -207,7 +212,15 @@ class ClaudeSwitcherApp(rumps.App):
 
     def _switch_account(self, provider: str, email: str):
         active = get_active_account(self.config_path, provider=provider)
-        if active and active.email == email:
+        switch_code = not (active and active.email == email)
+        with_desktop = False
+        if provider == "claude":
+            target = next(
+                (a for a in load_accounts(self.config_path) if a.provider == "claude" and a.email == email),
+                None,
+            )
+            with_desktop = bool(target and desktop.needs_switch(target))
+        if not switch_code and not with_desktop:
             return
         if provider in self._switch_in_progress:
             rumps.notification(
@@ -217,13 +230,24 @@ class ClaudeSwitcherApp(rumps.App):
             )
             return
 
+        if with_desktop:
+            switch_code, with_desktop = self._ask_desktop_choice(switch_code)
+            if not switch_code and not with_desktop:
+                return
+
         self._switch_in_progress.add(provider)
 
         def _switch():
             error = None
+            desktop_result = "skipped"
             try:
                 if provider == "claude":
-                    switch_account(email, self.config_path)
+                    if switch_code:
+                        switch_account(email, self.config_path)
+                    if with_desktop:
+                        accounts = load_accounts(self.config_path)
+                        target = next(a for a in accounts if a.provider == "claude" and a.email == email)
+                        desktop_result = desktop.switch_desktop(target, accounts)
                 else:
                     switch_codex_account(email, self.config_path)
             except Exception as exc:
@@ -234,17 +258,45 @@ class ClaudeSwitcherApp(rumps.App):
                 if error:
                     rumps.alert(title="Error", message=error)
                 else:
-                    rumps.notification(
-                        title="Claude Switcher",
-                        subtitle=f"{PROVIDER_LABELS[provider]} account switched",
-                        message=email,
-                    )
+                    if switch_code:
+                        rumps.notification(
+                            title="Claude Switcher",
+                            subtitle=f"{PROVIDER_LABELS[provider]} account switched",
+                            message=email,
+                        )
+                    if desktop_result in DESKTOP_MESSAGES:
+                        rumps.notification(
+                            title="Claude Switcher",
+                            subtitle="Claude Desktop",
+                            message=DESKTOP_MESSAGES[desktop_result],
+                        )
                 self._rebuild_menu()
                 self._fetch_all_usage()
 
             _on_main_thread(_finish)
 
         threading.Thread(target=_switch, daemon=True).start()
+
+    def _ask_desktop_choice(self, switch_code: bool) -> tuple[bool, bool]:
+        """Ask what to switch; returns (switch Claude Code, switch Desktop)."""
+        running = desktop.is_running()
+        note = " Claude Desktop will quit and reopen; anything running in it will stop." if running else ""
+        if not switch_code:
+            answer = rumps.alert(
+                title="Switch Claude Desktop?",
+                message=f"Claude Desktop is on another account.{note}",
+                ok="Switch Desktop",
+                cancel="Cancel",
+            )
+            return False, answer == 1
+        answer = rumps.alert(
+            title="What should switch?",
+            message=f"Claude Code, Claude Desktop, or both.{note}",
+            ok="Both",
+            cancel="Claude Code only",
+            other="Desktop only",
+        )
+        return answer != -1, answer != 0
 
     def _on_add_claude_account(self, _):
         """Add a new Claude Code account via claude auth login."""
@@ -486,6 +538,7 @@ class ClaudeSwitcherApp(rumps.App):
 
         if provider == "claude":
             remove_saved_account(email, self.config_path)
+            desktop.remove_login(email)
         else:
             remove_codex_account(email, self.config_path)
         rumps.notification(
